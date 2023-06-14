@@ -1,0 +1,85 @@
+---
+title: "projekt"
+author: "Filip KoniÄ‡ i Jakov Sergo"
+date: "2/1/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+library(stringr)
+```
+
+
+U ovom izvještaju predstavljena je grafička analiza tri podatkovna skupa vezanih za popularni serijal "Igra Prijestolja".
+
+```{r}
+battles <- read.csv("../data/GoT_battles.csv", stringsAsFactors = F, na.strings = c("NA",""))
+deaths <- read.csv("../data/GoT_character-deaths.csv", stringsAsFactors = F, na.strings = "NA")
+ratings <- read.csv("../data/SOIAF_chapters_ratings.csv", stringsAsFactors = F)
+characters<- read.csv("../data/SOIAF_characters.csv", stringsAsFactors = F)
+chapters <- read.csv("../data/Book_chapters.csv", sep = ";")
+
+ratings <- left_join(ratings, chapters, by = "povID")
+```
+
+
+Prvi podatkovni skup sadrži informacije o bitkama koje su se dogodile u prvih pet knjiga serijala. 
+
+```{r}
+ggplot(battles, aes(x = battles$attacker_size, y = battles$defender_size, color = battles$attacker_king)) + geom_point() + labs (x = "Attacker size", y = "Defender size", color = "Attacker king")
+
+ggplot(battles, aes(x = battles$attacker_size, y = battles$defender_size, color = battles$attacker_outcome)) + geom_point() + labs (x = "Attacker size", y = "Defender size", color = "Attacker outcome")
+
+ggplot(battles, aes(x = as.factor(battles$region), y = as.factor(battles$battle_type))) + geom_count() + labs (x = "Region", y = "Type of battle", size = "Number of battles") + labs (x = "Attacker size", y = "Defender size") + theme(axis.text.x = element_text(angle = 90))
+
+
+```
+
+Iz navedenih grafova možemo uvidjeti par kontraintuitivnih činjenica, a to da je lakše napadati nego se braniti (omjer pobjeda  napadača i branitelja je 11 naprema 4) te da veličina vojske ima malu korelaciju sa ishodom bitke. Također je moguće uvidjeti da se najviše sukoba odvijalo u Riverlandsima, te da je najviše bitaka zapravo bilo ugovoreno.
+
+***
+
+
+Kao drugi podatkovni skup imamo popis svih umrlih likova koji se spominju u knjigama.
+
+```{r, echo=FALSE}
+deaths$Allegiances <- str_replace_all(deaths$Allegiances, "House ", "")
+deaths$Gender <- deaths$Gender %>% lapply(function (x) {
+    if (x == 1) {
+        x <- "male"
+    }
+    else x <- "female"
+}) %>% unlist()
+
+#deaths$Gender <- factor(deaths$Gender)
+
+ggplot(deaths, aes(x = deaths$Allegiances, fill = as.factor(deaths$Nobility))) + geom_bar() + theme(axis.text.x = element_text(angle = 90)) + labs( x = "Allegiance", fill = "Nobility")
+
+ggplot(deaths, aes(x = deaths$Allegiances, fill = as.factor(deaths$Gender))) + geom_bar() + theme(axis.text.x = element_text(angle = 90)) + labs ( x = "Allegiance", fill = "Gender")
+    
+ggplot(deaths, aes(x = as.factor(deaths$Book.of.Death))) + geom_bar() 
+
+```
+Iz grafova možemo iščitati da je najviše likova spomenutih u knjigama zapravo umrlo van vremena koje knjige obrađuju, ali od onih koji su umrli u knjigama, najviše ih je umrlo u 3. knjizi (vjerojatno zbog _Red Weddinga_).
+
+***
+
+
+Treći obrađeni podatkovni skup su rejtinzi za poglavlja knjiga iz serijala "Pjesme Leda i Vatre".
+```{r}
+ggplot(ratings, aes(x = as.factor(ratings$Character))) + geom_bar() + theme(axis.text.x = element_text(angle = 90)) + labs(fill = "Nobility") + labs ( x = "Character")
+
+ratings$bookID <-  factor(ratings$bookID, labels = c("Game of Thrones", "Clash of Kings", "Storm of Swords", "Feast for Crows", "Dance with Dragons"), ordered = T) 
+
+ggplot(ratings, aes(x = as.factor(ratings$chapterInBook), y = ratings$ChapterRating, color = as.factor(ratings$bookID))) + geom_point(aes(group = ratings$bookID)) + stat_smooth(aes(group = ratings$bookID), method = 'loess') + labs ( x = "Chapter in the book", y = "Chapter rating")
+
+ggplot(ratings, aes(x = ratings$ID, y = ratings$ChapterRating)) + geom_line() + stat_smooth( method = 'loess') + labs ( x = "Chapter in the series", y = "Chapter rating")
+```
+
+Iz priloženog je uočljivo da je Tyrion Lannister "najrazgovorljiviji" pripovjedač u serijalu, te je uočljiv trend da se svakoj knjizi zanimljivija poglavlja nalaze pri kraju same knjige (takozvani cliffhangeri) te kada promatramo cijeli serijal možemo uočiti kako su početak i kraj serijala zanimljiviji od većeg, središnjeg dijela knjige.
